@@ -188,6 +188,31 @@ td {
     background-color: #1c1c1c;
     color: #f9f9f9;
 }
+/* Modal background */
+#editModal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  overflow: auto;
+}
+
+/* Modal content box */
+#editModal .modal-content {
+  background: #fff;
+  margin: 5% auto;
+  padding: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  position: relative;
+}
 
 
   

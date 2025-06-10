@@ -44,6 +44,7 @@
 <!-- jQuery (Required for Bootstrap 4) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+
 <!-- Popper.js (Required for Bootstrap 4) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
 
@@ -54,4 +55,21 @@
 <script src="assets/js/custom.js?v=<?=time()?>"></script>
 
 </body>
+<a href="#" class="ajax-link" data-page="test" style="color: gold;">🧪 Test Link</a>
+
+<div id="tableContentArea" style="padding: 20px; color: gold;"></div>
+
+<script>
+  console.log("Script loaded!"); // Check if this appears in console
+
+  $(document).on("click", ".ajax-link", function (e) {
+    e.preventDefault();
+    const page = $(this).data("page");
+    console.log("Clicked link for:", page); // Should appear in console
+    if (page) {
+      $("#tableContentArea").html("<p>Loaded page: " + page + "</p>");
+    }
+  });
+</script>
+
 </html>

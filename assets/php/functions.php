@@ -310,16 +310,17 @@ function getTableData($table) {
 // Function to edit a row (USE PREPARED STATEMENTS!)
 function editRow($table, $rowIndex, $columnName, $newValue) {
     $db = getDbConnection();
-    // Validate table name to avoid SQL injection
-    if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
-        return false;
-    }
-    // Sanitize the inputs
+
+    error_log("Table name received: " . $table);
+
+    // Escape values to avoid injection
     $table = mysqli_real_escape_string($db, $table);
     $columnName = mysqli_real_escape_string($db, $columnName);
     $newValue = mysqli_real_escape_string($db, $newValue);
-    // Construct the update query (USE PREPARED STATEMENTS!)
-    $sql = "UPDATE `$table` SET `$columnName` = '$newValue' WHERE id = '$rowIndex'"; //VERY INSECURE!
+    $rowIndex = mysqli_real_escape_string($db, $rowIndex);
+
+    $sql = "UPDATE `$table` SET `$columnName` = '$newValue' WHERE id = '$rowIndex'";
+
     if (mysqli_query($db, $sql)) {
         return true;
     } else {
@@ -327,6 +328,7 @@ function editRow($table, $rowIndex, $columnName, $newValue) {
         return false;
     }
 }
+
 // Function to delete a row (USE PREPARED STATEMENTS!)
 function deleteRow($table, $id) {
     $db = getDbConnection();
@@ -423,6 +425,77 @@ function createProduct($data, $file) {
 
     $stmt->bind_param("ssssdsi", $name, $description, $category, $target_audience, $price, $imagePathForDB, $stock);
     return $stmt->execute();
+}
+
+//add to cart
+function addToCart($conn, $user_id, $product_id, $quantity = 1) {
+    // Sanity check
+    if ($user_id <= 0 || $product_id <= 0 || $quantity <= 0) {
+        return ['status' => false, 'message' => 'Invalid input parameters'];
+    }
+
+    // Check if product already exists in cart
+    $checkSql = "SELECT quantity FROM cart WHERE user_id = ? AND product_id = ?";
+    $stmt = $conn->prepare($checkSql);
+    $stmt->bind_param("ii", $user_id, $product_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        // Update existing quantity
+        $row = $result->fetch_assoc();
+        $newQuantity = $row['quantity'] + $quantity;
+
+        $updateSql = "UPDATE cart SET quantity = ?, updated_at = NOW() WHERE user_id = ? AND product_id = ?";
+        $stmt = $conn->prepare($updateSql);
+        $stmt->bind_param("iii", $newQuantity, $user_id, $product_id);
+
+        if ($stmt->execute()) {
+            return ['status' => true, 'message' => 'Cart updated'];
+        } else {
+            return ['status' => false, 'message' => 'Failed to update cart: ' . $conn->error];
+        }
+    } else {
+        // Insert new cart item
+        $insertSql = "INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)";
+        $stmt = $conn->prepare($insertSql);
+        $stmt->bind_param("iii", $user_id, $product_id, $quantity);
+
+        if ($stmt->execute()) {
+            return ['status' => true, 'message' => 'Product added to cart'];
+        } else {
+            return ['status' => false, 'message' => 'Failed to add to cart: ' . $conn->error];
+        }
+    }
+}
+//add slide
+function validateSlideForm($files) {
+    $errors = [];
+
+    if (!isset($files['slide_image']) || $files['slide_image']['error'] !== 0) {
+        $errors['slide_image'] = 'Slide image is required and must be a valid file.';
+    }
+
+    $status = empty($errors);
+    return ['status' => $status, 'messages' => $errors];
+}
+
+function createSlide($files) {
+    global $conn;
+
+    $imageName = basename($files['slide_image']['name']);
+    $tmpPath = $files['slide_image']['tmp_name'];
+    $targetDir = __DIR__ . '/../uploads/';
+    $targetPath = $targetDir . $imageName;
+
+    if (move_uploaded_file($tmpPath, $targetPath)) {
+        $created_at = date('Y-m-d H:i:s');
+        $stmt = $conn->prepare("INSERT INTO slides (image, created_at) VALUES (?, ?)");
+        $stmt->bind_param("ss", $imageName, $created_at);
+        return $stmt->execute();
+    }
+
+    return false;
 }
 
 

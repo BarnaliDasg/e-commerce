@@ -26,6 +26,7 @@ require_once __DIR__ . '/../php/functions.php';
         style="width: 100%; padding: 10px 12px; margin-bottom: 16px; border: 1px solid gold; border-radius: 5px; background-color: #222; color: gold; font-size: 16px; outline: none;">
         <option disabled selected>-- Select Category --</option>
         <option value="T-Shirts">T-Shirts</option>
+        <option value="T-Shirts">Shirts</option>
         <option value="Jeans">Jeans</option>
         <option value="Dresses">Dresses</option>
         <option value="Accessories">Accessories</option>

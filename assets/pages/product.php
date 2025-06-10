@@ -12,7 +12,6 @@ $product_query = "SELECT * FROM products";
 $product_result = mysqli_query($db, $product_query);
 ?>
 
-
 <!-- Carousel Section -->
 <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel" style="height: 200px;">
   <div class="carousel-indicators">
@@ -57,11 +56,11 @@ $product_result = mysqli_query($db, $product_query);
             <?php while ($row = mysqli_fetch_assoc($product_result)): ?>
                 <div class="product-card">
                     <!-- Use the image_url as is, no extra ../uploads/ prefix -->
-                    <img class="product-image" src="<?php echo htmlspecialchars($row['image_url']); ?>" alt="<?php echo htmlspecialchars($row['name']); ?>">
+                    <img style="width: 325px; height: 400px; object-fit: cover;" class="product-image" src="<?php echo htmlspecialchars($row['image_url']); ?>" alt="<?php echo htmlspecialchars($row['name']); ?>">
                     <div class="product-info">
                         <div class="product-name"><?php echo htmlspecialchars($row['name']); ?></div>
                         <div class="product-price">₹<?php echo htmlspecialchars($row['price']); ?></div>
-                        <a href="#" class="btn"><i class="fas fa-cart-plus"></i> Add to Cart</a>
+                        <button class="addcart-btn" data-product-id="<?= $row['id']; ?>">Add to Cart</button>
                     </div>
                 </div>
             <?php endwhile; ?>

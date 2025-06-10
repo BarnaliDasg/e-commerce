@@ -117,6 +117,16 @@ if (isset($_SESSION['Auth']) && $user && $user['ac_status'] == 1 && !$pageCount)
     showPage('navbar');
     showPage('add_product');
     showPage('footer');
+    }elseif (isset($_GET['add_slide'])) {
+    showPage('header', ['page_title' => 'Add Slide']);
+    showPage('navbar');
+    showPage('add_slide');
+    showPage('footer');
+} elseif (isset($_GET['cart'])) {
+    showPage('header', ['page_title' => 'Cart']);
+    showPage('navbar');
+    showPage('cart');
+    showPage('footer');
     }else {
         showPage('header', ['page_title' => 'Login']);
         showPage('login');

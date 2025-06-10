@@ -66,11 +66,6 @@ if (isset($_GET['login'])) {
 }
 
 
-
-
-
-
-
 // Handle Email Verification
 if (isset($_GET['verify_email'])) {
     $user_code = $_POST['code'] ?? null;
@@ -332,18 +327,34 @@ if ($action === 'get_table_data') {
     exit;
 } elseif ($action === 'edit_row') {
     $table = $_POST['table'] ?? '';
-    $rowIndex = $_POST['row_index'] ?? '';
-    $columnName = $_POST['column_name'] ?? '';
-    $newValue = $_POST['new_value'] ?? '';
-    if (!$table || !$rowIndex || !$columnName || !$newValue) {
-        echo json_encode(['status' => 'error', 'message' => 'Missing data for edit']);
+    $id = $_POST['id'] ?? '';
+    $updates = json_decode($_POST['updates'] ?? '{}', true);
+
+    // Basic validation - no whitelist, but check presence
+    if (!$table || !$id || !is_array($updates) || empty($updates)) {
+        echo json_encode(['status' => 'error', 'message' => 'Missing or invalid edit data']);
         exit;
     }
-    if (editRow($table, $rowIndex, $columnName, $newValue)) {
-        echo json_encode(['status' => 'success', 'message' => 'Row updated successfully']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Error updating row']);
+
+    $db = getDbConnection();
+
+    // Escape inputs and prepare update parts
+    $setParts = [];
+    foreach ($updates as $column => $value) {
+        $column = mysqli_real_escape_string($db, $column);
+        $value = mysqli_real_escape_string($db, $value);
+        $setParts[] = "`$column` = '$value'";
     }
+
+    $id = mysqli_real_escape_string($db, $id);
+    $sql = "UPDATE `$table` SET " . implode(', ', $setParts) . " WHERE id = '$id'";
+
+    if (mysqli_query($db, $sql)) {
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_error($db)]);
+    }
+
     exit;
 } elseif ($action === 'delete_row') {
     $table = $_POST['table'] ?? '';
@@ -362,8 +373,6 @@ if ($action === 'get_table_data') {
 
     exit;
 }
-
-
 //add product
 if (isset($_GET['action']) && $_GET['action'] === 'addproduct') {
     header('Content-Type: application/json');
@@ -380,6 +389,68 @@ if (isset($_GET['action']) && $_GET['action'] === 'addproduct') {
         }
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Validation failed.', 'errors' => $response['messages']]);
+        exit();
+    }
+}
+//add to cart
+if (isset($_GET['action']) && $_GET['action'] === 'addcart') {
+
+    if (!isset($_SESSION['Auth']) || $_SESSION['Auth'] != 1) {
+        echo json_encode(['status' => false, 'message' => 'User not logged in']);
+        exit;
+    }
+    $userId = $_SESSION['userdata']['id'];
+    $productId = $_POST['product_id'] ?? null;
+    $quantity = $_POST['quantity'] ?? 1;
+
+    if (!$productId || $quantity <= 0) {
+        echo json_encode(['status' => false, 'message' => 'Invalid product or quantity']);
+        exit;
+    }
+
+    // Sanitize input to prevent SQL Injection (if using mysqli with prepared statements)
+    $conn = getDbConnection(); // Your DB connection function
+
+    // Use prepared statement for safety
+    $stmt = $conn->prepare("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?");
+    if (!$stmt) {
+        echo json_encode(['status' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+        exit;
+    }
+
+    $stmt->bind_param("iiii", $userId, $productId, $quantity, $quantity);
+
+    if ($stmt->execute()) {
+        echo json_encode(['status' => true, 'message' => 'Product added to cart']);
+    } else {
+        echo json_encode(['status' => false, 'message' => 'Failed to add to cart: ' . $stmt->error]);
+    }
+
+    $stmt->close();
+    $conn->close();
+    exit;
+}
+
+// Add slide
+if (isset($_GET['action']) && $_GET['action'] === 'addslide') {
+    header('Content-Type: application/json');
+
+    $response = validateSlideForm($_FILES);
+
+    if ($response['status']) {
+        if (createSlide($_FILES)) {
+            echo json_encode(['status' => 'success']);
+            exit();
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to add slide.']);
+            exit();
+        }
+    } else {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Validation failed.',
+            'errors' => $response['messages']
+        ]);
         exit();
     }
 }

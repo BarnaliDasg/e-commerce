@@ -3,7 +3,7 @@
 var input=document.querySelector("#select_post_img");
 
 input.addEventListener("change",preview);
-
+let selectedTableGlobal = "";
 function preview(){
     var fileobject = this.files[0];
     var filereader = new FileReader();
@@ -154,7 +154,7 @@ $(document).on("submit", "#commentForm", function (e) {
 
 //search
 $(document).ready(function () {
-    $("#pincodeSearchForm").submit(function (event) {
+    $("#SearchForm").submit(function (event) {
         event.preventDefault(); // Prevent page reload
 
         var pincode = $("#pincodeInput").val().trim();
@@ -165,7 +165,7 @@ $(document).ready(function () {
         }
 
         $.ajax({
-            url: "assets/php/ajax.php?searchPincode",
+            url: "assets/php/ajax.php?search",
             method: "POST",
             dataType: "json",
             data: { pincode: pincode },
@@ -302,9 +302,16 @@ $(document).ready(function () {
 
                         // Attach events after HTML load
                        $(".edit-btn").on("click", function () {
-                            const rowId = $(this).data("id");
                             const rowIndex = $(this).data("row-index");
-                            handleEdit(tableName, rowId, response.columns, response.rows[rowIndex]);
+                            const rowId = response.rows[rowIndex][0]; // Assuming ID is in the first column
+                            const rowData = response.rows[rowIndex];
+
+                            if (!rowData) {
+                                console.error("Invalid rowData at index:", rowIndex, response.rows);
+                                return;
+                            }
+
+                            handleEdit(tableName, rowId, response.columns, rowData);
                         });
 
 
@@ -323,94 +330,153 @@ $(document).ready(function () {
                 }
             });
         }
-        function enableRowEditing(tableName, rowId, columns, rowData) {
-        // Find the row by matching the rowId in the first cell
-        const row = $("#tableContentArea table tbody tr").filter(function() {
-            return $(this).find("td:first").text() == rowId;
-        });
+        // function handleEdit(tableName, rowId, columns, rowData) {
+        //     // Clear previous fields
+        //     $("#editFields").empty();
 
-        if (row.length === 0) {
-            alert("Row not found.");
-            return;
+        //     // Set the hidden ID
+        //     $("#editRowId").val(rowId);
+
+        //     // Build the form fields (skip 'id' column)
+        //     for (let i = 0; i < columns.length; i++) {
+        //         if (columns[i].toLowerCase() === "id") continue;
+
+        //         const fieldHtml = `
+        //             <div class="form-group mb-2">
+        //                 <label>${columns[i]}</label>
+        //                 <input type="text" class="form-control" name="${columns[i]}" value="${rowData[i] || ''}">
+        //             </div>
+        //         `;
+        //         $("#editFields").append(fieldHtml);
+        //     }
+
+        //     // Show the modal
+        //     $("#editModal").fadeIn();
+        // }
+
+        // // Close modal on × click
+        // $("#closeEditModal").on("click", function () {
+        //     $("#editModal").fadeOut();
+        // });
+
+        // // Handle form submission
+        // $("#editForm").on("submit", function (e) {
+        //     e.preventDefault();
+
+        //     const tableName = $(".edit-btn").data("table"); // Optional fallback
+        //     const rowId = $("#editRowId").val();
+        //     const formDataArray = $(this).serializeArray();
+
+        //     const updates = {};
+        //     formDataArray.forEach(field => {
+        //         if (field.name !== "id") {
+        //             updates[field.name] = field.value;
+        //         }
+        //     });
+
+        //     $.ajax({
+        //         url: "assets/php/actions.php",
+        //         type: "POST",
+        //         data: {
+        //             action: "edit_row",
+        //             table: selectedTableGlobal, // <- set this globally when loading table
+        //             id: rowId,
+        //             updates: JSON.stringify(updates)
+        //         },
+        //         dataType: "json",
+        //         success: function (response) {
+        //             if (response.status === "success") {
+        //                 alert("Row updated successfully!");
+        //                 $("#editModal").fadeOut();
+        //                 loadTableData(selectedTableGlobal); // Refresh table
+        //             } else {
+        //                 alert("Error updating row: " + response.message);
+        //             }
+        //         },
+        //         error: function (xhr, status, error) {
+        //             console.error("Edit AJAX Error:", xhr.responseText);
+        //             alert("AJAX error during edit");
+        //         }
+        //     });
+        // });// Before sending AJAX, add debugging logs and validate selectedTableGlobal
+
+$("#editForm").on("submit", function (e) {
+    e.preventDefault();
+
+    if (!selectedTableGlobal) {
+        alert("No table selected to update!");
+        return;
+    }
+
+    const rowId = $("#editRowId").val();
+    const formDataArray = $(this).serializeArray();
+
+    const updates = {};
+    formDataArray.forEach(field => {
+        if (field.name !== "id") {
+            updates[field.name] = field.value;
         }
+    });
 
-        // Prevent multiple rows being edited simultaneously
-        if (row.hasClass("editing")) {
-            alert("This row is already being edited.");
-            return;
-        }
-        
-        // Mark this row as being edited
-        row.addClass("editing");
+    console.log("Sending update for table:", selectedTableGlobal);
+    console.log("Row ID:", rowId);
+    console.log("Updates:", updates);
 
-        // Backup original cells html to revert on cancel
-        const originalHtml = row.html();
+    if (!rowId) {
+        alert("Row ID missing!");
+        return;
+    }
 
-        // Replace all columns except the first (ID) and last (Actions) with inputs
-        row.find("td").each(function(index) {
-            if (index === 0) {
-            // ID cell — keep as plain text or readonly input
-            const idVal = $(this).text();
-            $(this).html(`<input type="text" value="${idVal}" readonly style="background:#eee; border:none; width:100%;">`);
-            } else if (index === row.find("td").length - 1) {
-            // Actions cell — replace buttons with Save and Cancel
-            $(this).html(`
-                <button class="save-edit-btn">Save</button>
-                <button class="cancel-edit-btn">Cancel</button>
-            `);
-            } else {
-            // Editable cells
-            const val = $(this).text();
-            $(this).html(`<input type="text" value="${val}" style="width:100%;">`);
-            }
-        });
+    if (Object.keys(updates).length === 0) {
+        alert("No data to update!");
+        return;
+    }
 
-        // Save button handler
-        row.find(".save-edit-btn").on("click", function() {
-            const updatedData = {};
-            row.find("td").each(function(index) {
-            if (index > 0 && index < row.find("td").length - 1) {
-                const colName = columns[index]; // assuming columns array aligns with td order
-                const val = $(this).find("input").val();
-                updatedData[colName] = val;
-            }
-            });
-
-            $.ajax({
-            url: "assets/php/actions.php",
-            method: "POST",
-            dataType: "json",
-            data: {
-                action: "edit_row_full",
-                table: tableName,
-                row_id: rowId,
-                updated_data: updatedData
-            },
-            success: function(response) {
-                if (response.status === "success") {
+    $.ajax({
+        url: "assets/php/actions.php",
+        type: "POST",
+        data: {
+            action: "edit_row",
+            table: selectedTableGlobal,
+            id: rowId,
+            updates: JSON.stringify(updates)
+        },
+        dataType: "json",
+        success: function (response) {
+            if (response.status === "success") {
                 alert("Row updated successfully!");
-                loadTableData(tableName); // reload table or update row
-                } else {
+                $("#editModal").fadeOut();
+                loadTableData(selectedTableGlobal);
+            } else {
                 alert("Error updating row: " + response.message);
-                row.html(originalHtml);
-                row.removeClass("editing");
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX error:", error);
-                alert("AJAX error. Check console.");
-                row.html(originalHtml);
-                row.removeClass("editing");
             }
-            });
-        });
-
-        // Cancel button handler — revert changes
-        row.find(".cancel-edit-btn").on("click", function() {
-            row.html(originalHtml);
-            row.removeClass("editing");
-        });
+        },
+        error: function (xhr, status, error) {
+            console.error("Edit AJAX Error:", xhr.responseText);
+            alert("AJAX error during edit");
         }
+    });
+});
+function handleEdit(tableName, rowId, columns, rowData) {
+    selectedTableGlobal = tableName; // <-- Ensure this global var is set
+
+    $("#editFields").empty();
+    $("#editRowId").val(rowId);
+
+    for (let i = 0; i < columns.length; i++) {
+        if (columns[i].toLowerCase() === "id") continue;
+
+        const fieldHtml = `
+            <div class="form-group mb-2">
+                <label>${columns[i]}</label>
+                <input type="text" class="form-control" name="${columns[i]}" value="${rowData[i] || ''}">
+            </div>
+        `;
+        $("#editFields").append(fieldHtml);
+    }
+
+    $("#editModal").fadeIn();
+}
 
 
 
@@ -501,4 +567,102 @@ $(document).on("submit", "#addProductForm", function (e) {
 });
 
 
+//add to cart
+$(document).on("click", ".addcart-btn", function() {
+    var productId = $(this).data("product-id");
+    var btn = $(this);
+    btn.prop("disabled", true);
+
+    $.ajax({
+        url: "assets/php/actions.php?action=addcart",  // Use consistent URL
+        method: "POST",
+        data: { product_id: productId, quantity: 1 },  // hardcoded quantity 1
+        dataType: "json",
+        success: function(response) {
+            btn.prop("disabled", false);
+            if (response.status) {
+                btn.text("Added to Cart").addClass("btn-success").removeClass("btn-primary");
+                // Optionally update cart count UI here
+            } else {
+                alert(response.message || "Could not add to cart");
+            }
+        },
+        error: function(xhr, status, error) {
+            btn.prop("disabled", false);
+            alert("Something went wrong. Try again.");
+            console.error("AJAX error:", error, xhr.responseText);
+        }
+    });
+});
+
+// Optional reusable function if you want to call addToCart programmatically
+function addToCart(productId, quantity = 1) {
+    $.ajax({
+        url: 'assets/php/actions.php?action=addcart',
+        method: 'POST',
+        data: {
+            product_id: productId,
+            quantity: quantity
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status) {
+                alert(response.message);  // or update cart UI accordingly
+            } else {
+                alert('Error: ' + response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            alert('Something went wrong. Try again.');
+            console.error(error, xhr.responseText);
+        }
+    });
+}
+
+//add slide
+$(document).on("submit", "#addSlideForm", function (e) {
+    e.preventDefault();
+
+    var form = $(this)[0];
+    var formData = new FormData(form);
+
+    $.ajax({
+        url: "assets/php/actions.php?action=addslide",
+        method: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: "json",
+        success: function (response) {
+            if (response.status === "success") {
+                alert("✅ Slide added successfully!");
+                $("#tableContentArea").load("assets/pages/slide_table_view.php"); // Update if your slide view is elsewhere
+            } else {
+                alert("⚠️ " + (response.message || "Error adding slide."));
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error("AJAX Error:", status, error);
+            alert("❌ Something went wrong.");
+        }
+    });
+});
+
+$(document).ready(function () {
+  $("#cartBtn").on("click", function (e) {
+    e.preventDefault();
+    console.log("Cart icon clicked.");
+    $("#cartContainer").html("<p>Loading cart...</p>");
+    $.ajax({
+      url: "cart.php",
+      method: "GET",
+      success: function (data) {
+        $("#cartContainer").html(data);
+      },
+      error: function () {
+        $("#cartContainer").html("<p>Failed to load cart. Try again.</p>");
+      }
+    });
+  });
+});
 
